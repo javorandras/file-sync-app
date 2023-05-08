@@ -37,7 +37,37 @@ app.post('/api/login', async (req: Request, res: Response) => {
     if(api.canRespond) {
         let status = await api.TryLogin(req.body.username, req.body.password);
         res.status(200).send(status);
-        console.log(`Success Response to: ${req.ip}`);
+        console.log(`Successful Response to: ${req.ip}`);
+        console.log(status);
+    } else {
+        let msg = {code: 1, type: "error", msg: "You can't access this without a valid API Key."}
+        res.status(403).send(msg);
+        console.log(`Failure Response to: ${req.ip}`);
+        console.log(msg);
+    }
+});
+
+app.post('/api/register', async (req: Request, res: Response) => {
+    let api: SyncAPI = new SyncAPI(req.body, req.headers);
+    if(api.canRespond) {
+        let status = await api.TryRegister(req.body.username, req.body.email, req.body.password, req.body.password_conf);
+        res.status(200).send(status);
+        console.log(`Successful Response to: ${req.ip}`);
+        console.log(status);
+    } else {
+        let msg = {code: 1, type: "error", msg: "You can't access this without a valid API Key."}
+        res.status(403).send(msg);
+        console.log(`Failure Response to: ${req.ip}`);
+        console.log(msg);
+    }
+});
+
+app.post('/api/logout', async (req: Request, res: Response) => {
+    let api: SyncAPI = new SyncAPI(req.body, req.headers);
+    if(api.canRespond) {
+        let status = await api.Logout(req.body.username, true);
+        res.status(200).send(status);
+        console.log(`Successful Response to: ${req.ip}`);
         console.log(status);
     } else {
         let msg = {code: 1, type: "error", msg: "You can't access this without a valid API Key."}

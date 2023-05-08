@@ -60,6 +60,7 @@ export class Database {
         }).finally(() => {
             if(this.has_connected) {
                 this.connection?.end();
+                this.has_connected = false;
             }
         })
     }

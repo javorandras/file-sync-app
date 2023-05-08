@@ -71,6 +71,7 @@ class Database {
                 var _a;
                 if (this.has_connected) {
                     (_a = this.connection) === null || _a === void 0 ? void 0 : _a.end();
+                    this.has_connected = false;
                 }
             });
         });
