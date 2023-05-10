@@ -56,7 +56,8 @@ export class SyncAPI {
                     let pw = row["password"];
                     if(this.enc.Match(pw, pass)) {
                         await this.GenerateNewSession(user); 
-                        row.session_id = this.active_sessions.get(user);
+                        row.session_id = this.active_sessions.get(user).id;
+                        row.password = "PROTECTED";
                         return { code: 0, type: "success", msg: "You logged in successfully.", userdata: row };
                     }
                     return { code: 1, type: "error", msg: "You've used invalid credentials." };
@@ -95,7 +96,7 @@ export class SyncAPI {
                                     return { code: 0, type: "success", msg: "You successfully registered an account.", userdata: {
                                         id: row.id,
                                         username: user,
-                                        password: pass_enc,
+                                        password: "PROTECTED",
                                         last_login: ts,
                                         date_created: ts,
                                         email: email, 
@@ -120,5 +121,21 @@ export class SyncAPI {
             this.active_sessions.delete(user);
         }
         return { code: 0, type: "success", msg: "You've been logged out automatically."}
+    }
+
+    async ValidateSession(sess_id: string) {
+        if(!this.db.has_connected) await this.db.connect();
+        if(this.db.has_connected) {
+            let results = await this.db.runQuery("SELECT * FROM users WHERE session_id = ?;", [sess_id]);
+            if(results) {
+                var rows = JSON.parse(JSON.stringify(results));
+                if(rows.length == 1) {
+                    let row: Record<string, string> = rows[0];
+                    row.password = "PROTECTED";
+                    return { code: 0, type: "success", msg: "Session validated.", userata: row }
+                }
+            }
+        }
+        return { code: 1, type: "error", msg: "This session is not valid anymore." }
     }
 }
