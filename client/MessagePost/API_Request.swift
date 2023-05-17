@@ -26,23 +26,19 @@ struct CredentialsResponse: Decodable {
     enum type: String, Decodable {
         case success, error
     }
-    struct userdata : Decodable, Identifiable{
-        struct sessionID : Decodable{
-            var session_id : String
-            let session_expiration : String
-        }
-        let id : Int
-        let username : String
-        let password : String
-        let last_login : String
-        let date_created : String
-        let email : String
-        let session : sessionID
+    let code: Int
+    let type: type
+    let msg: String
+    let userdata : User.userdata?
+}
+
+struct SessionResponse: Decodable {
+    enum type: String, Decodable {
+        case success, error
     }
     let code: Int
     let type: type
     let msg: String
-    let userdata : userdata?
 }
 
 struct APIRequest {
@@ -82,41 +78,11 @@ struct APIRequest {
         }
     }
     
-    func check (credentials: Credentials, completion: @escaping(Result<CredentialsResponse, APIError>) -> Void) -> Void{
-        do {
-            var urlRequest = URLRequest(url: url)
-            urlRequest.httpMethod = "POST"
-            urlRequest.addValue("application/json", forHTTPHeaderField: "Content-Type")
-            urlRequest.setValue("application/json", forHTTPHeaderField: "Accept")
-            urlRequest.addValue("1234", forHTTPHeaderField: "api")
-            urlRequest.httpBody = try JSONEncoder().encode(credentials)
-            
-            let dataTask = URLSession.shared.dataTask(with: urlRequest) { data, response, _ in
-                guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200, let data = data else {
-                    completion(.failure(.responseProblem))
-                    return
-                }
-                do {
-                    let jsonData = try JSONDecoder().decode(CredentialsResponse.self, from: data)
-                    completion(.success(jsonData))
-                } catch {
-                    completion(.failure(.decodingProblem))
-                }
-            }
-            dataTask.resume()
-            return
-        } catch {
-            completion(.failure(.encodingProblem))
-            return
-        }
-    }
-    
-    func check (credentials: Credentials) async throws -> String{
+    func sendCredentials (credentials: Credentials) async throws -> CredentialsResponse{
         var urlRequest = URLRequest(url: url)
         urlRequest.httpMethod = "POST"
         urlRequest.addValue("application/json", forHTTPHeaderField: "Content-Type")
         urlRequest.setValue("application/json", forHTTPHeaderField: "Accept")
-        urlRequest.addValue("1234", forHTTPHeaderField: "api")
         urlRequest.httpBody = try JSONEncoder().encode(credentials)
         let session = URLSession.shared
         let (data, response) = try await session.data(for: urlRequest)
@@ -124,10 +90,28 @@ struct APIRequest {
         guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
             throw APIError.responseProblem
         }
-        /*guard let data = try? JSONDecoder().decode(CredentialsResponse.self, from: data) else {
+        guard let data = try? JSONDecoder().decode(CredentialsResponse.self, from: data) else {
             throw APIError.decodingProblem
-        }*/
-        let jsondata = String(decoding: data, as: UTF8.self)
-        return jsondata
+        }
+        //let jsondata = String(decoding: data, as: UTF8.self)
+        return data
+    }
+    
+    func checkSession (session_id: String) async throws -> SessionResponse{
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = "POST"
+        urlRequest.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Accept")
+        urlRequest.setValue("session_id", forHTTPHeaderField: "\(session_id)")
+        let session = URLSession.shared
+        let (data, response) = try await session.data(for: urlRequest)
+        
+        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+            throw APIError.responseProblem
+        }
+        guard let data = try? JSONDecoder().decode(SessionResponse.self, from: data) else {
+            throw APIError.decodingProblem
+        }
+        return data
     }
 }

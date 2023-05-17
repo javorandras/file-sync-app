@@ -8,7 +8,8 @@
 import SwiftUI
 
 struct LoginView: View {
-    @Binding var isLoginSuccessful : Bool
+    //@Binding var isLoginSuccessful : Bool
+    @EnvironmentObject var user : User
     @State private var Username = ""
     @State private var Password = ""
     @State var showPassword: Bool = false
@@ -74,23 +75,29 @@ struct LoginView: View {
             .padding()
         }
     }
+    
     func check()  {
         let c = Credentials(username: Username, password: Password)
         Task.init() {
-            isLoginSuccessful = await c.sendCredentials()
+            do {
+                user.userdata = try await c.checkLoginResponse()
+                print(user.userdata!.username)
+                //isLoginSuccessful = true
+                print("login success")
+            } catch Credentials.LoginResponse.wrongPassword{
+                //isLoginSuccessful = false
+                print("pass szar")
+            } catch Credentials.LoginResponse.userNotFound{
+                //isLoginSuccessful = false
+                print("user not found")
+            }
         }
-        if (isLoginSuccessful) {
-            print("login success")
-        } else {
-        Password = ""
-        print("pass szar")
     }
-}
 }
 
 struct Login_Previews: PreviewProvider {
     static var previews: some View {
         @State var l : Bool = false
-        LoginView(isLoginSuccessful: $l)
+        LoginView()
     }
 }
