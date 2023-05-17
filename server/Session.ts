@@ -15,6 +15,8 @@ export const StatusCodes = {
     sess_invalid: 10,
     msg_received: 11,
     invalid_req: 12,
+    poor_password: 13,
+    invalid_email: 14,
 };
 
 export const DatabaseCredentials = {
@@ -99,9 +101,9 @@ export class Session {
         if (results) {
             var rows = JSON.parse(JSON.stringify(results));
             if (rows.length == 0) {
-                if (!Session.isValidEmail(email)) return { code: 1, type: "error", msg: "The entered email is not valid, please use an existing one.", }
+                if (!Session.isValidEmail(email)) return { code: StatusCodes.invalid_email, type: "error", msg: "The entered email is not valid, please use an existing one.", }
                 if (pass == pass_conf) {
-                    if (Session.checkPassword(pass)) return { code: 1, type: "error", msg: "Password's too weak. Your password must contain atleast a capital letter and atleast 5 characters long.", }
+                    if (Session.checkPassword(pass)) return { code: StatusCodes.poor_password, type: "error", msg: "Password's too weak. Your password must contain atleast a capital letter and atleast 5 characters long.", }
                     let pass_enc = this.enc.Encrypt(pass_conf);
                     let ts = new Date().getTime();
                     await this.db.runQuery("INSERT INTO users SET username = ?, password = ?, last_login = ?, date_created = ?, email = ?;", [
