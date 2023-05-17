@@ -1,9 +1,10 @@
 import { Request, Response } from "express";
-import { SyncAPI, StatusCodes } from "./syncapi";
-import { Program } from "./index";
+import { Session, StatusCodes } from "./Session";
+import { Program } from "./Program";
 
 export class Requests {
-    static api?: SyncAPI;
+    static session: Session;
+    static Program: {};
 
     static requestBlacklist: Map<string, number> = new Map<string, number>();
     static requestChecker: Map<string, {}> = new Map<string, {}>();
@@ -119,7 +120,7 @@ export class Requests {
             }
             let headers: Record<any, any> = req.headers;
             let session_id = headers.session;
-            let status = await Requests.api?.ValidateSession(session_id);
+            let status = await Requests.session?.ValidateSession(session_id);
             if (status && callback != undefined) {
                 callback(req, res);
                 return;

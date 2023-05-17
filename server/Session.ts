@@ -1,5 +1,5 @@
-import { Database } from './database';
-import { Encryption } from './encrypt';
+import { Database } from './Database';
+import { Encryption } from './Encryption';
 
 export const StatusCodes = {
     logged_in: 0,
@@ -31,7 +31,7 @@ export const EncryptionCredentials = {
     separator: "*",
 };
 
-export class SyncAPI {
+export class Session {
     static ActiveSessions: Map<string, number> = new Map<string, number>();
 
     db: Database;
@@ -61,13 +61,13 @@ export class SyncAPI {
     async GenerateNewSession(user_id: number) {
         await this.db.runQuery("DELETE FROM active_sessions WHERE expiration <= ?;", [new Date().getTime()]);
         let id: string = this.enc.GenerateRandomString(12);
-        while (SyncAPI.ActiveSessions.has(id)) {
+        while (Session.ActiveSessions.has(id)) {
             id = this.enc.GenerateRandomString(12);
         }
         let exp: number = new Date().getTime() + (7 * 24 * 60 * 60 * 1000);
         await this.db.runQuery("INSERT INTO active_sessions SET user_id = ?, session = ?, expiration = ?;", [user_id, id, exp]);
         await this.db.runQuery("UPDATE users SET last_login = ? WHERE id = ?;", [new Date().getTime(), user_id]);
-        SyncAPI.ActiveSessions.set(id, exp);
+        Session.ActiveSessions.set(id, exp);
         return { id: id, expiration: exp };
     }
 
@@ -99,9 +99,9 @@ export class SyncAPI {
         if (results) {
             var rows = JSON.parse(JSON.stringify(results));
             if (rows.length == 0) {
-                if (!SyncAPI.isValidEmail(email)) return { code: 1, type: "error", msg: "The entered email is not valid, please use an existing one.", }
+                if (!Session.isValidEmail(email)) return { code: 1, type: "error", msg: "The entered email is not valid, please use an existing one.", }
                 if (pass == pass_conf) {
-                    if (SyncAPI.checkPassword(pass)) return { code: 1, type: "error", msg: "Password's too weak. Your password must contain atleast a capital letter and atleast 5 characters long.", }
+                    if (Session.checkPassword(pass)) return { code: 1, type: "error", msg: "Password's too weak. Your password must contain atleast a capital letter and atleast 5 characters long.", }
                     let pass_enc = this.enc.Encrypt(pass_conf);
                     let ts = new Date().getTime();
                     await this.db.runQuery("INSERT INTO users SET username = ?, password = ?, last_login = ?, date_created = ?, email = ?;", [
@@ -143,11 +143,11 @@ export class SyncAPI {
     }
 
     async ValidateSession(id: string) {
-        if(!SyncAPI.ActiveSessions.has(id)) {
+        if(!Session.ActiveSessions.has(id)) {
             let results: Record<any, any> = this.db.runQuery("SELECT * FROM active_sessions WHERE session = ? AND expiration > ?;", [id, new Date().getTime()]);
             return results.length > 0 ? { code: StatusCodes.sess_valid, type: "success", msg: "Session validated." } : { code: StatusCodes.sess_invalid, type: "error", msg: "This session is not valid anymore." };
         } else {
-            let expiration = SyncAPI.ActiveSessions.get(id);
+            let expiration = Session.ActiveSessions.get(id);
             if(expiration != undefined && expiration > new Date().getTime()) {
                 return { code: StatusCodes.sess_valid, type: "success", msg: "Session validated." };
             }

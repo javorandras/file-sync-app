@@ -2,8 +2,8 @@ import crypto from 'crypto';
 
 export class Encryption {
 
-    salt: string = "";
-    separator: string = "";
+    salt: string;
+    separator: string;
 
     constructor(salt: string, separator: string) {
         this.salt = salt;
