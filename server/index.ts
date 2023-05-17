@@ -1,102 +1,76 @@
 import express, { Express, Request, Response } from "express";
-import { SyncAPI } from "./syncapi";
+import { SyncAPI, StatusCodes } from "./syncapi";
+import { Requests } from "./requests";
 import bodyParser from "body-parser";
-import os from 'os';
 
-const router = express.Router();
+export const Program = {
+    port: 7777,
+    app: express(),
+    debug: true,
+    req_per_min: 60,
+    req_cooldown: 60*5, // SECONDS
+}
 
+Program.app.use(bodyParser.urlencoded({ extended: false }));
+Program.app.use(bodyParser.json());
 
-import multer from 'multer';
-const upload = multer({ dest: os.tmpdir() });
-
-
-const port: number = 7777;
-const app: Express = express();
-
-app.use(bodyParser.urlencoded({ extended: false }));
-app.use(bodyParser.json());
-
-app.listen(port, () => {
-    console.log(`[File-SYNC] Now listening on port ${port}`);
+Program.app.listen(Program.port, () => {
+    console.log(`[File-SYNC] Now listening on port ${Program.port}`);
 });
 
-app.get('/', (req: Request, res: Response) => {
-    res.send("File-Sync Server App - NodeJS");
+Program.app.get('/', (req: Request, res: Response) => {
+    res.send("<a href='https://github.com/javorandras/file-sync-app' target='_blank'>Github Repo</a>");
 });
 
-app.post('/api/messages', (req: Request, res: Response) => {
-    console.log(req.body);
-    let api: SyncAPI = new SyncAPI(req.body, req.headers);
-    if (api.canRespond) {
-        let msg = { code: 0, type: "success", msg: "Received." }
-        res.send(msg);
+let api = new SyncAPI();
+Requests.api = api;
+
+Program.app.post('/api/messages', async (req: Request, res: Response) => await Requests.sessionRequest(req, res, (async () => {
+    let msg = { code: StatusCodes.msg_received, type: "success", msg: "Received." }
+    res.send(msg);
+    if (Program.debug) {
         console.log(`Success Response to: ${req.ip}`);
         console.log(msg);
-    } else {
-        let msg = { code: 1, type: "error", msg: "You can't access this without a valid API Key." }
-        res.status(403).send(msg);
-        console.log(`Failure Response to: ${req.ip}`);
-        console.log(msg);
     }
-});
+})));
 
-app.post('/api/login', async (req: Request, res: Response) => {
-    let api: SyncAPI = new SyncAPI(req.body, req.headers);
-    if (api.canRespond) {
-        let status = await api.TryLogin(req.body.username, req.body.password);
-        res.status(200).send(status);
+Program.app.post('/api/login', async (req: Request, res: Response) => Requests.fieldCheckRequest(req, res, [], ["username", "password"], async (req: Request, res: Response) => {
+    let status = await api.TryLogin(req.body.username, req.body.password);
+    res.status(200).send(status);
+    if (Program.debug) {
         console.log(`Successful Response to: ${req.ip}`);
         console.log(status);
-    } else {
-        let msg = { code: 1, type: "error", msg: "You can't access this without a valid API Key." }
-        res.status(403).send(msg);
-        console.log(`Failure Response to: ${req.ip}`);
-        console.log(msg);
     }
-});
+}));
 
-app.post('/api/register', async (req: Request, res: Response) => {
-    let api: SyncAPI = new SyncAPI(req.body, req.headers);
-    if (api.canRespond) {
-        let status = await api.TryRegister(req.body.username, req.body.email, req.body.password, req.body.password_conf);
-        res.status(200).send(status);
+Program.app.post('/api/register', async (req: Request, res: Response) => Requests.fieldCheckRequest(req, res, [], ["username", "email", "password", "password_conf"], async (req: Request, res: Response) => {
+    let status = await api.TryRegister(req.body.username, req.body.email, req.body.password, req.body.password_conf);
+    res.status(200).send(status);
+    if (Program.debug) {
         console.log(`Successful Response to: ${req.ip}`);
         console.log(status);
-    } else {
-        let msg = { code: 1, type: "error", msg: "You can't access this without a valid API Key." }
-        res.status(403).send(msg);
-        console.log(`Failure Response to: ${req.ip}`);
-        console.log(msg);
     }
-});
+}));
 
-app.post('/api/logout', async (req: Request, res: Response) => {
-    let api: SyncAPI = new SyncAPI(req.body, req.headers);
-    if (api.canRespond) {
-        let status = await api.Logout(req.body.username, true);
-        res.status(200).send(status);
+Program.app.post('/api/logout', async (req: Request, res: Response) => await Requests.fieldCheckRequest(req, res, ["session_id"], [], (async (req: Request, res: Response) => Requests.sessionRequest(req, res, async (req: Request, res: Response) => {
+    let status = await api.Logout(req.body.session_id);
+    res.status(200).send(status);
+    if (Program.debug) {
         console.log(`Successful Response to: ${req.ip}`);
         console.log(status);
-    } else {
-        let msg = { code: 1, type: "error", msg: "You can't access this without a valid API Key." }
-        res.status(403).send(msg);
-        console.log(`Failure Response to: ${req.ip}`);
-        console.log(msg);
     }
-});
+}))));
 
-app.post('/api/checkSession', async (req: Request, res: Response) => { 
-    let api: SyncAPI = new SyncAPI(req.body, req.headers);
-    if (api.canRespond) {
-        let session_id = req.body.session_id;
-        let msg = await api.ValidateSession(session_id);
-        res.status(200).send(msg);
+Program.app.post('/api/checkSession', async (req: Request, res: Response) => await Requests.fieldCheckRequest(req, res, ["session_id"], [], (async (req: Request, res: Response) => Requests.sessionRequest(req, res, async (req: Request, res: Response) => {
+    let headers: Record<string, any> = req.headers;
+    let session_id = headers.session_id;
+    let msg = await api.ValidateSession(session_id);
+    res.status(200).send(msg);
+    if (Program.debug) {
         console.log(`Successful Response to: ${req.ip}`);
         console.log(msg);
-    } else {
-        let msg = { code: 1, type: "error", msg: "You can't access this without a valid API Key." }
-        res.status(403).send(msg);
-        console.log(`Failure Response to: ${req.ip}`);
-        console.log(msg);
     }
-});
+}))));
+
+
+
