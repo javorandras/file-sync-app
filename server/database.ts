@@ -18,7 +18,6 @@ export class Database {
         this.username = username;
         this.password = password;
     }
-
     
     async connect() {
         return new Promise<mysql.Connection>((resolve, reject) => {
@@ -38,30 +37,34 @@ export class Database {
             })
         }).then((conn: mysql.Connection) => {
             this.connection = conn;
-            console.log("MySql successfully connected.");
+            // console.log("MySql successfully connected.");
         }).catch((error: MysqlError) => {
             console.log(error);
         });
     }
 
     async runQuery(query: string, params: Array<string | number | boolean>) {
-        return new Promise<mysql.Connection>((resolve, reject) => {
-            if(this.has_connected) {
-                this.connection?.query(query, params, (error, result) => {
-                    if(error) {
-                        reject(error);
-                        return;
-                    }
-                    resolve(result);
-                });
-            } else {
-                throw new Error("You'll need establish a connection first.");
-            } 
-        }).finally(() => {
-            if(this.has_connected) {
-                this.connection?.end();
-                this.has_connected = false;
-            }
-        })
+        if (!this.has_connected) await this.connect();
+        if (this.has_connected) {
+            return new Promise<mysql.Connection>((resolve, reject) => {
+                if(this.has_connected) {
+                    this.connection?.query(query, params, (error, result) => {
+                        if(error) { 
+                            reject(error);
+                            return;
+                        }
+                        resolve(result);
+                    });
+                } else {
+                    throw new Error("You'll need establish a connection first.");
+                } 
+            }).finally(() => {
+                if(this.has_connected) {
+                    this.connection?.end();
+                    this.has_connected = false;
+                }
+            });
+        }
+        return {};
     }
 }
